@@ -465,10 +465,33 @@ namespace DSR_ConsoleWebService
     {
         public static void Main(string[] args)
         {
-            int port;
-            if (!int.TryParse(args[0], out port))
+            int port = 800;
+            String RabbitMQAddr;
+            String MongoDbConnectionString;
+
+            if (args.Length < 1 || !int.TryParse(args[0], out port))
+            {
+                Console.WriteLine("[-] TCP Port not selected. starting on port 800");
                 port = 800;
-            Controller mainController = new Controller(TCPListeningPort: port, RabbitMQAddr: args[1], MongoDbConnectionString: args[2]);
+            }
+
+            if (args.Length < 2)
+            {
+                RabbitMQAddr = "localhost";
+                Console.WriteLine("[-] RabbitMQ Address not selected. connecting to {0}",RabbitMQAddr);
+                
+            }
+            else
+                RabbitMQAddr = args[1];
+            if (args.Length < 3)
+            {
+                MongoDbConnectionString = "mongodb://localhost:27017";
+                Console.WriteLine("[-] MongoDB connectionString not selected. connecting with {0}", MongoDbConnectionString);
+            }
+            else
+                MongoDbConnectionString = args[2];
+
+            Controller mainController = new Controller(TCPListeningPort: port, RabbitMQAddr: RabbitMQAddr, MongoDbConnectionString: MongoDbConnectionString);
         }
     }
 }
