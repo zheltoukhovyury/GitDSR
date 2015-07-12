@@ -1,0 +1,15 @@
+d:\Projects\DSR_ConsoleWebService\DSR_ConsoleWebService\bin\Debug\DSR_ConsoleWebService.exe.config
+d:\Projects\DSR_ConsoleWebService\DSR_ConsoleWebService\bin\Debug\DSR_ConsoleWebService.exe
+d:\Projects\DSR_ConsoleWebService\DSR_ConsoleWebService\bin\Debug\DSR_ConsoleWebService.pdb
+d:\Projects\DSR_ConsoleWebService\DSR_ConsoleWebService\bin\Debug\Newtonsoft.Json.dll
+d:\Projects\DSR_ConsoleWebService\DSR_ConsoleWebService\bin\Debug\RabbitMQ.Client.dll
+d:\Projects\DSR_ConsoleWebService\DSR_ConsoleWebService\bin\Debug\Newtonsoft.Json.xml
+d:\Projects\DSR_ConsoleWebService\DSR_ConsoleWebService\bin\Debug\RabbitMQ.Client.xml
+d:\Projects\DSR_ConsoleWebService\DSR_ConsoleWebService\obj\Debug\DSR_ConsoleWebService.csprojResolveAssemblyReference.cache
+d:\Projects\DSR_ConsoleWebService\DSR_ConsoleWebService\obj\Debug\DSR_ConsoleWebService.exe
+d:\Projects\DSR_ConsoleWebService\DSR_ConsoleWebService\obj\Debug\DSR_ConsoleWebService.pdb
+D:\Projects\DSR_ConsoleWebService\DSR_ConsoleWebService\bin\Debug\MongoDB.Bson.dll
+D:\Projects\DSR_ConsoleWebService\DSR_ConsoleWebService\bin\Debug\MongoDB.Driver.Core.dll
+D:\Projects\DSR_ConsoleWebService\DSR_ConsoleWebService\bin\Debug\MongoDB.Driver.dll
+D:\Projects\DSR_ConsoleWebService\DSR_ConsoleWebService\bin\Debug\MongoDB.Bson.xml
+D:\Projects\DSR_ConsoleWebService\DSR_ConsoleWebService\bin\Debug\MongoDB.Driver.xml
