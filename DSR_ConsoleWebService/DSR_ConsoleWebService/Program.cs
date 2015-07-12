@@ -223,8 +223,12 @@ namespace DSR_ConsoleWebService
         IMongoDatabase dataBase = null;
         BsonDocument document = null;
         Thread controllerThread;
+
         public delegate void ResponceForClient(HTTPRequest request, HTTPServer.ClientConnection client);
         public event ResponceForClient onResponceForClient;
+
+        public delegate void NewCommand(DSRCommand command);
+        public event NewCommand onNewCommand;
 
         async void ControllerRunMethod()
         {
@@ -282,34 +286,36 @@ namespace DSR_ConsoleWebService
 
                     var update = Builders<BsonDocument>.Update;
                     var updater = update.Set("delivered", true);
-                    var cursor = await collection.FindAsync(filter);
 
-                    while (await cursor.MoveNextAsync())
+                    bool polling = true;
+                    bool checkCollection = true;
+                    while (polling)
                     {
-
-                        Object batch = cursor.Current;
-                        var enumerator = (batch as IEnumerable<BsonDocument>).GetEnumerator();
-                        enumerator.Reset();
-                        if (enumerator.MoveNext())
+                        if (checkCollection == false)
+                            continue;
+                        var cursor = await collection.FindAsync(filter);
+                        if(await cursor.MoveNextAsync())
                         {
-                            if (onResponceForClient != null)
+
+                            Object batch = cursor.Current;
+                            var enumerator = (batch as IEnumerable<BsonDocument>).GetEnumerator();
+                            enumerator.Reset();
+                            if (enumerator.MoveNext())
                             {
-                                HTTPRequest responce = new HTTPRequest();
-                                BsonDocument command = enumerator.Current;
-                                BsonDocument details = command.GetValue("command").AsBsonDocument;
-                                command.Remove("_id");
-                                command.Remove("expired");
-                                command.Remove("creationTime");
-                                command.Remove("delivered");
-                                command.Remove("timeout");
-                                
+                                if (onResponceForClient != null)
+                                {
+                                    HTTPRequest responce = new HTTPRequest();
+                                    BsonDocument command = enumerator.Current;
+                                    BsonDocument details = command.GetValue("command").AsBsonDocument;
+                                    command.Remove("_id");
+                                    command.Remove("expired");
+                                    command.Remove("creationTime");
+                                    command.Remove("delivered");
+                                    command.Remove("timeout");
 
-                                Byte[] content = Encoding.UTF8.GetBytes(command.ToJson().ToString());
-                                
-
-                                String contentLenhthHeader = String.Format("Content-Length: {0}\r\n",content.Length);
-
-                                String[] headers = {
+                                    Byte[] content = Encoding.UTF8.GetBytes(command.ToJson().ToString());
+                                    String contentLenhthHeader = String.Format("Content-Length: {0}\r\n", content.Length);
+                                    String[] headers = {
                                     "HTTP/1.1 200 OK\r\n",
                                     "Date: Wed, 11 Feb 2009 11:20:59 GMT\r\n",
                                     "Server: Apache\r\n",
@@ -319,22 +325,31 @@ namespace DSR_ConsoleWebService
                                     "Content-Type: application/json;\r\n",
                                     contentLenhthHeader,
                                     "Connection: close\r\n"};
-                                foreach (String header in headers)
-                                    responce.headers.Add(header);
+                                    foreach (String header in headers)
+                                        responce.headers.Add(header);
 
-                                responce.content = content;
-                                onResponceForClient.Invoke(responce, clientConnection);
+                                    responce.content = content;
+                                    onResponceForClient.Invoke(responce, clientConnection);
 
-                                await collection.UpdateOneAsync(filter, updater);
+                                    await collection.UpdateOneAsync(filter, updater);
+                                    polling = false;
+                                }
                             }
                             else
-                            { 
+                            {
                                 //long polling
-                            
+                                onNewCommand += delegate(DSRCommand command)
+                                {
+                                    if (command.deviceId == substrings[2]) // Captain ? :)
+                                    {
+                                        checkCollection = true;
+                                        //check collection once
+                                    }
+                                };
                             }
                         }
+                        checkCollection = false;
                     }
-
                 }
 
                 if (substrings[0] == "POST")
@@ -352,6 +367,8 @@ namespace DSR_ConsoleWebService
                         {
                             Console.WriteLine("                  name = {0} value = {1}", details.name, details.value);
                         }
+
+                        
                     }
                     catch (Exception ex)
                     {
@@ -383,6 +400,8 @@ namespace DSR_ConsoleWebService
 
 
                         await collection.InsertOneAsync(newCommand);
+                        if (onNewCommand != null)
+                            onNewCommand.Invoke(command);
 
 
                         /*
