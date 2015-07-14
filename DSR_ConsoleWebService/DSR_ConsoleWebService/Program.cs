@@ -78,6 +78,13 @@ namespace DSR_ConsoleWebService
 
         public async void OnHttpResponce(HTTPRequest responce, ClientConnection client)
         {
+            if (responce == null)
+            {
+                client.socket.Close();
+                clientList.Remove(client);
+                return;
+            }
+
             foreach (String header in responce.headers)
                 await client.socket.GetStream().WriteAsync(Encoding.UTF8.GetBytes(header), 0, header.Length);
             await client.socket.GetStream().WriteAsync(Encoding.UTF8.GetBytes("\r\n"), 0, 2);
@@ -136,6 +143,7 @@ namespace DSR_ConsoleWebService
                             
                             if(client.requestOnReceiving != null && client.requestOnReceiving.headers != null && client.receivedLen == 2)
                             {
+                                //end of request headers
                                 if(client.contentLenght != 0)
                                 {
                                     client.receivedLen = 0;
@@ -278,6 +286,34 @@ namespace DSR_ConsoleWebService
 
                 String[] substrings = request.headers[0].Split(new String[] { "/", " " }, StringSplitOptions.RemoveEmptyEntries);
 
+                if (substrings[0] == "GET" && substrings[1] == "HTTP")
+                {
+                    Console.WriteLine("[+] Request Accepted. GET WebPAge Interface ");
+                    if (onResponceForClient != null)
+                    {
+                        HTTPRequest responce = new HTTPRequest();
+                        String tr = Properties.Resources.WebInterface;
+                        Byte[] content = Encoding.UTF8.GetBytes(tr);
+                        String contentLenhthHeader = String.Format("Content-Length: {0}\r\n", content.Length);
+                        String[] headers = {
+                        "HTTP/1.1 200 OK\r\n",
+                        "Date: Wed, 11 Feb 2009 11:20:59 GMT\r\n",
+                        "Server: Apache\r\n",
+                        "X-Powered-By: PHP/5.2.4-2ubuntu5wm1\r\n",
+                        "Last-Modified: Wed, 11 Feb 2009 11:20:59 GMT\r\n",
+                        "Content-Language: ru\r\n",
+                        "Content-Type: text/html; charset=utf-8",
+                        contentLenhthHeader,
+                        "Connection: close\r\n"};
+                        foreach (String header in headers)
+                            responce.headers.Add(header);
+
+                        responce.content = content;
+                        onResponceForClient.Invoke(responce, clientConnection);
+                    }
+                }
+
+
                 if (substrings[0] == "GET" && substrings[1] == "command")
                 {
                     Console.WriteLine("[+] Request Accepted. GET deviceId = {0}  timeout = {1} ", substrings[2], substrings[3]);
@@ -289,6 +325,23 @@ namespace DSR_ConsoleWebService
 
                     bool polling = true;
                     bool checkCollection = true;
+                    Timer pollingTimer = null;
+                    int timeout = 10000;
+                    int.TryParse(substrings[3], out timeout);
+
+                    pollingTimer = new System.Threading.Timer(delegate(Object state)
+                    {
+                        if (pollingTimer != null)
+                        {
+                            pollingTimer.Change(-1, Timeout.Infinite);
+                            pollingTimer.Dispose();
+                            pollingTimer = null;
+                            polling = false;
+                            onResponceForClient.Invoke(null, clientConnection);
+                        }
+                    }, null, (Int32)timeout, timeout);
+
+
                     while (polling)
                     {
                         if (checkCollection == false)
@@ -333,6 +386,10 @@ namespace DSR_ConsoleWebService
 
                                     await collection.UpdateOneAsync(filter, updater);
                                     polling = false;
+                                    pollingTimer.Change(-1, Timeout.Infinite);
+                                    pollingTimer.Dispose();
+                                    pollingTimer = null;
+                                    onResponceForClient.Invoke(null, clientConnection);
                                 }
                             }
                             else
