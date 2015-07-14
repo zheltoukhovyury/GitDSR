@@ -134,14 +134,11 @@ function AddDetailClick () {
     $('#CommandDeatailsTable tr:last').after(
         "<tr><td>"+ newDetailName.value +"</td><td>"+ newDetailValue.value +"</td></tr>"
         );
-
-    jsstring = jsstring;
-
 }
 
 function NewCommandSubmit (form) {
 
-    var args = $(form).find("input").attr("hide") = "false";
+
 
     /*
     $.post(

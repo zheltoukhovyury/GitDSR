@@ -90,6 +90,8 @@ namespace DSR_ConsoleWebService
             await client.socket.GetStream().WriteAsync(Encoding.UTF8.GetBytes("\r\n"), 0, 2);
             await client.socket.GetStream().WriteAsync(responce.content, 0, responce.content.Length);
             await client.socket.GetStream().WriteAsync(Encoding.UTF8.GetBytes("\r\n"), 0, 2);
+            client.socket.Close();
+            clientList.Remove(client);
         }
 
         void ServerRun()
@@ -113,8 +115,8 @@ namespace DSR_ConsoleWebService
                 for(int i = 0; i < clientList.Count; i++)
                 {
                     ClientConnection client = clientList[i];
-                    
-                    while(client.socket.Available != 0)
+
+                    while (client.socket.Connected == true && client.socket.Available != 0)
                     {
                         if(client.receivingContent == false)
                             client.socket.GetStream().Read(client.receivedData, client.receivedLen++, 1);
