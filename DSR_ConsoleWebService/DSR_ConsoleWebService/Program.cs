@@ -315,6 +315,74 @@ namespace DSR_ConsoleWebService
                     }
                 }
 
+                if (substrings[0] == "POST" && substrings[1] == "newCommand")
+                {
+                    String argumentString = Encoding.UTF8.GetString(request.content);
+                    argumentString = argumentString;
+
+
+                }
+
+                if (substrings[0] == "GET" && substrings[1].StartsWith("viewLog?devId="))
+                {
+                    String argumentString;
+
+                    if (true)
+                    {
+                        argumentString = substrings[1].Remove(0, "viewLog?devId=".Length);
+                        Console.WriteLine("[+] Request Accepted. POST View Log deviceId = {0} ", argumentString);
+                        var builder = Builders<BsonDocument>.Filter;
+                        var filter = builder.Eq("deviceId", argumentString);
+
+                        var cursor = await collection.FindAsync(filter);
+                        StringBuilder resultBuilder = new StringBuilder();
+                        while (await cursor.MoveNextAsync())
+                        {
+                            Object batch = cursor.Current;
+                            var enumerator = (batch as IEnumerable<BsonDocument>).GetEnumerator();
+                            enumerator.Reset();
+                            int count = 0;
+                            while (enumerator.MoveNext())
+                            {
+                                BsonDocument command = enumerator.Current;
+                                BsonArray details = command.GetValue("command").AsBsonArray;
+                                command.Remove("_id");
+                                command.Remove("expired");
+                                command.Remove("creationTime");
+                                if (resultBuilder.Length == 0) resultBuilder.Append("{\"log\":[");
+
+                                if(count != 0)
+                                    resultBuilder.Append(",");
+                                resultBuilder.Append(command.ToJson().ToString());
+                                count++;
+                            }
+                            resultBuilder.Append("]}");
+                        }
+                        Byte[] content = Encoding.UTF8.GetBytes(resultBuilder.ToString());
+                        HTTPRequest responce = new HTTPRequest();
+                        String contentLenhthHeader = String.Format("Content-Length: {0}\r\n", content.Length);
+                        String[] headers = {
+                                    "HTTP/1.1 200 OK\r\n",
+                                    "Date: Wed, 11 Feb 2009 11:20:59 GMT\r\n",
+                                    "Server: Apache\r\n",
+                                    "X-Powered-By: PHP/5.2.4-2ubuntu5wm1\r\n",
+                                    "Last-Modified: Wed, 11 Feb 2009 11:20:59 GMT\r\n",
+                                    "Content-Language: ru\r\n",
+                                    "Content-Type: application/json;\r\n",
+                                    contentLenhthHeader,
+                                    "Connection: close\r\n"};
+                        foreach (String header in headers)
+                            responce.headers.Add(header);
+
+                        String test = resultBuilder.ToString();
+
+                        Object and = JsonConvert.DeserializeObject(test);
+
+                        responce.content = content;
+                        onResponceForClient.Invoke(responce, clientConnection);
+
+                    }
+                }
 
                 if (substrings[0] == "GET" && substrings[1] == "command")
                 {
@@ -446,7 +514,7 @@ namespace DSR_ConsoleWebService
                         newCommand.Add("timeout", 60);
                         newCommand.Add("expired", false);
                         newCommand.Add("delivered", false);
-
+                        /*
                         BsonDocument details = new BsonDocument();
                         for (int i = 0; i < command.command.Length; i++)
                         {
@@ -456,9 +524,31 @@ namespace DSR_ConsoleWebService
                             details.Add(String.Format("commandDetail_{0}",i),detail);
                         }
                         newCommand.Add("command", details);
+                        */
 
+                        JObject newObject = new JObject();
 
-                        await collection.InsertOneAsync(newCommand);
+                        newObject.Add("deviceId", command.deviceId);
+                        newObject.Add("creationTime", DateTime.Now);
+                        newObject.Add("timeout", 60);
+                        newObject.Add("expired", false);
+                        newObject.Add("delivered", false);
+
+                        JArray detailsArray = new JArray();
+                        for (int i = 0; i < command.command.Length; i++)
+                        {
+                            JObject detailfield = new JObject();
+                            detailfield.Add(new JProperty("name",command.command[i].name));
+                            detailfield.Add(new JProperty("value",command.command[i].value));
+                            detailsArray.Add(detailfield);
+                        }
+                        
+                        newObject.Add("command", detailsArray);
+
+                        BsonDocument doc = BsonDocument.Parse(newObject.ToString());
+                        
+
+                        await collection.InsertOneAsync(doc);
                         if (onNewCommand != null)
                             onNewCommand.Invoke(command);
 
