@@ -38,7 +38,7 @@
                             Device ID
                         </td>
                         <td style="width: 90%">
-                            <input type="input" style=" width:200px" />
+                            <input type="input" style=" width:200px" id="newCommandDeviceID" />
                         </td>
                     </tr>
                     <tr>
@@ -46,9 +46,12 @@
                             Command
                         </td>
                         <td style="width: 90%">
-                            <select>
-                                <option disabled="true">Select Command</option>
+                            <select id="newCommandType">
+                                <option selected="selected" disabled="true">Select Command</option>
                                 <option value="delete">Delete</option>
+                                <option value="getInfo">Get Info</option>
+                                <option value="upgrade">Upgrade</option>
+                                <option value="setOnOff">Set On/Off</option>
                             </select>
                         </td>
                     </tr>
@@ -78,9 +81,6 @@
                         </td>
                         <td>
                             <form id="newCommandForm">
-                                <input hidden="true" name="newCommandDevId" id="newCommandDevId" value="sdsd" />
-                                <input hidden="true" name="newCommandCommand" id="newCommandCommand" value="sdsddsf" />
-                                <input hidden="true" name="newCommandDetails" id="newCommandDetails" value="sdsddsf" />
                                 <input type="button" name="postNewCommandButton" id="postNewCommandButton" value="NewCommand"></input>
                             </form>
                         </td>
@@ -114,7 +114,7 @@
                         Creation Time
                     </td>
                     <td style="width: 15%">
-                        Status
+                        Dlivered
                     </td>
                 </tr>
             </table>
@@ -123,63 +123,42 @@
 </body>
 
 <script type="text/javascript">
-
     $(document).ready(function () {
-
         $("#AddDetailClick").click(function () {
             AddDetailClick();
         });
-
-
         $("#newCommandForm").click(function () {
-
             NewCommandSubmit($("#newCommandForm input"));
         });
-
         $("#viewLogButton").click(function () {
-
             ViewLogSubmit(document.getElementById("viewLogDeviceId").value);
         });
-
-
         var point = 0;
         point = 3;
-
-
     });
-
-
     window.onload = function () {
         init();
     };
-
     function init() {
         var t = 0;
         t++;
     }
-
     var CommandDetailsCount = 0;
     var detailList = [];
 
     function AddDetailClick() {
         if (newDetailName.value == "" || newDetailValue.value == "") return;
-
         CommandDetailsCount++;
-        detailList.push([newDetailName.value, newDetailValue.value]);
+        var test = { name: newDetailName.value, value: newDetailValue.value };
+        detailList.push({ name: newDetailName.value, value: newDetailValue.value });
         var table = $("#CommandDeatailsTable");
         $('#CommandDeatailsTable tr:last').after(
             "<tr><td>" + newDetailName.value + "</td><td>" + newDetailValue.value + "</td></tr>"
             );
-
-
-        AddToLogTable("com!!", ["detail1 : value 1", "detail2 : value 2"], "timestamp", "unknown");
     }
-
     function NewCommandSubmit(inputs) {
-
-        var devId = document.getElementById("newCommandDevId").value;
-        var command = document.getElementById("newCommandCommand").value;
-        var details = document.getElementById("newCommandDetails").value;
+        var devId = document.getElementById("newCommandDeviceID").value;
+        var command = document.getElementById("newCommandType").value;
 
         if (devId == null)
             alert("Enter Device ID");
@@ -188,63 +167,73 @@
         if (devId == null || command == null)
             return;
 
-        $.post("newCommand", { newCommandDevId: devId, newCommandCommand: command, anewCommandDetails: details })
-        .done(function () {
-            alert("success");
-        })
-        .fail(function () {
-            alert("error");
-        });
+        var commandData = { deviceId: devId, command: {commandName: command, parameters: detailList } };
+        var test = JSON.stringify(commandData);
 
-        return false;
-    }
-
-
-    function ViewLogSubmit(inputs) {
-
-
-        
-
-        $.get("viewLog", { devId: inputs})
-        .done(function (responce) {
-            alert("responce!!");
-
-            var str = JSON.stringify(responce, null, 2); // spacing level = 2     
-            for (var i = 0; i < responce.log.length; i++)
-                AddToLogTable(responce.log[i].deviceId, str, "Sdsd", "status");
-            
-            
-            
-
-
-
+        $.ajax("newCommand", {
+            data: JSON.stringify(commandData),
+            contentType: 'application/json',
+            type: 'POST',
+        }).done(function (responce) {
+            alert("posted!!");
         })
         .fail(function (responce) {
             alert("error");
+        })
+        return false;
+    }
+    function ViewLogSubmit(inputs) {
 
+        $.get("viewLog", { devId: inputs })
+        .done(function (responce) {
+            alert("responce!!");
+            $('#LogTAble').find("tr:gt(0)").remove();
+            var str = JSON.stringify(responce, null, 2); // spacing level = 2
+            for (var i = 0; i < responce.log.length; i++)
+                AddToLogTable(responce.log[i]);
+        })
+        .fail(function (responce) {
+            alert("error");
         });
         return false;
     }
+    function AddToLogTable(details) {
 
+        if (details.command.commandName == null)
+            details.command.commandName = "N0 command name";
 
-    function AddToLogTable(command, details, time, status) {
+        if (details.command.parameters == null)
+            details.command.parameters = ""
+
+        if (details.creationTime == null)
+            details.creationTime = "Unkn0wn";
+
+        if (details.delivered == null)
+            details.delivered = "Unkn0wn";
 
         var string = "<tr>" +
-            "<td>" + command + "</td>";
-
+            "<td>" + details.command.commandName + "<button>show details</button></td>";
         string += "<td>";
-        string += details;
+        for (var i = 0; i < details.command.parameters.length; i++) {
+            string += "<p style=\"font-size: 90%\">";
+            string += "name : " + details.command.parameters[i].name;
+            string += "value : " + details.command.parameters[i].value;
+            string += "</p>";
+        }
         string += "</td>";
-
-        string += "<td>" + time + "</td>" +
-            "<td>" + status + "</td>" +
-            "</tr>";
-
-
+        string += "<td>" + details.creationTime + "</td>";
+        string += "<td>" + details.delivered + "</td>";
+        
         $('#LogTAble tr:last').after(string);
 
-    }
+        
+        var but = $("#LogTAble tr:last button");
+        var det = details;
+        but.click(function () {
+            alert(JSON.stringify(details))});
 
+        
+    }
     //---------------------------------
 </script>
 

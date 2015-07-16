@@ -18,6 +18,7 @@ using System.Net;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
+using System.Threading.Tasks;
 
 
 namespace DSR_ConsoleWebService
@@ -88,7 +89,8 @@ namespace DSR_ConsoleWebService
             foreach (String header in responce.headers)
                 await client.socket.GetStream().WriteAsync(Encoding.UTF8.GetBytes(header), 0, header.Length);
             await client.socket.GetStream().WriteAsync(Encoding.UTF8.GetBytes("\r\n"), 0, 2);
-            await client.socket.GetStream().WriteAsync(responce.content, 0, responce.content.Length);
+            if(responce.content != null)
+                await client.socket.GetStream().WriteAsync(responce.content, 0, responce.content.Length);
             await client.socket.GetStream().WriteAsync(Encoding.UTF8.GetBytes("\r\n"), 0, 2);
             client.socket.Close();
             clientList.Remove(client);
@@ -268,6 +270,8 @@ namespace DSR_ConsoleWebService
             var collection = dataBase.GetCollection<BsonDocument>("DSR_Commands");
             var testCollection = dataBase.GetCollection<BsonDocument>("DBConnectionTest");
             BsonDocument testCommand = new BsonDocument();
+         
+
             testCommand.Add("test", "test");
             try
             {
@@ -278,10 +282,7 @@ namespace DSR_ConsoleWebService
             {
                 Console.WriteLine("[-] Connecting to MongoDB with ConnectionString {0} FAILED", MongoDbConnectionString);
             }
-
-
-
-
+            
             onResponceForClient += server.OnHttpResponce;
             server.OnNewHttpRequest += async delegate(HTTPRequest request, HTTPServer.ClientConnection clientConnection)
             {
@@ -314,16 +315,53 @@ namespace DSR_ConsoleWebService
                         onResponceForClient.Invoke(responce, clientConnection);
                     }
                 }
-
-                if (substrings[0] == "POST" && substrings[1] == "newCommand")
+                else if (substrings[0] == "POST" && substrings[1] == "newCommand")
                 {
                     String argumentString = Encoding.UTF8.GetString(request.content);
-                    argumentString = argumentString;
 
+                    Console.WriteLine("[+] Request Accepted. POST WebPAge Interface new Command");
+
+                    JObject newCommand = JObject.Parse(argumentString);
+                    
+                    newCommand.Add("creationTime", DateTime.Now);
+                    newCommand.Add("timeout", 60);
+                    newCommand.Add("expired", false);
+                    newCommand.Add("delivered", false);
+
+
+                    Console.WriteLine("[+] Request Accepted. POST deviceId = {0}", newCommand.GetValue("deviceId"));
+                    Console.WriteLine("          Command Details :");
+
+                    //Console.WriteLine("                  name = {0} value = {1}", details.name, details.value);
+
+
+                    BsonDocument doc = BsonDocument.Parse(newCommand.ToString());
+
+                    await collection.InsertOneAsync(doc);
+
+                    if (onNewCommand != null)
+                        onNewCommand.Invoke(new DSRCommand() { deviceId = newCommand.GetValue("deviceId").ToString() });
+
+                    if (onResponceForClient != null)
+                    {
+                        HTTPRequest responce = new HTTPRequest();
+                        String[] headers = {
+                        "HTTP/1.1 200 OK\r\n",
+                        "Date: Wed, 11 Feb 2009 11:20:59 GMT\r\n",
+                        "Server: Apache\r\n",
+                        "X-Powered-By: PHP/5.2.4-2ubuntu5wm1\r\n",
+                        "Last-Modified: Wed, 11 Feb 2009 11:20:59 GMT\r\n",
+                        "Content-Language: ru\r\n",
+                        "Content-Type: text/html; charset=utf-8",
+                        "Connection: close\r\n"};
+                        foreach (String header in headers)
+                            responce.headers.Add(header);
+                        onResponceForClient.Invoke(responce, clientConnection);
+                    }
 
                 }
 
-                if (substrings[0] == "GET" && substrings[1].StartsWith("viewLog?devId="))
+                else if (substrings[0] == "GET" && substrings[1].StartsWith("viewLog?devId="))
                 {
                     String argumentString;
 
@@ -345,10 +383,8 @@ namespace DSR_ConsoleWebService
                             while (enumerator.MoveNext())
                             {
                                 BsonDocument command = enumerator.Current;
-                                BsonArray details = command.GetValue("command").AsBsonArray;
                                 command.Remove("_id");
                                 command.Remove("expired");
-                                command.Remove("creationTime");
                                 if (resultBuilder.Length == 0) resultBuilder.Append("{\"log\":[");
 
                                 if(count != 0)
@@ -356,7 +392,8 @@ namespace DSR_ConsoleWebService
                                 resultBuilder.Append(command.ToJson().ToString());
                                 count++;
                             }
-                            resultBuilder.Append("]}");
+                            if(count != 0)
+                                resultBuilder.Append("]}");
                         }
                         Byte[] content = Encoding.UTF8.GetBytes(resultBuilder.ToString());
                         HTTPRequest responce = new HTTPRequest();
@@ -384,7 +421,7 @@ namespace DSR_ConsoleWebService
                     }
                 }
 
-                if (substrings[0] == "GET" && substrings[1] == "command")
+                else if (substrings[0] == "GET" && substrings[1] == "command")
                 {
                     Console.WriteLine("[+] Request Accepted. GET deviceId = {0}  timeout = {1} ", substrings[2], substrings[3]);
                     var builder = Builders<BsonDocument>.Filter;
@@ -397,7 +434,10 @@ namespace DSR_ConsoleWebService
                     bool checkCollection = true;
                     Timer pollingTimer = null;
                     int timeout = 10000;
-                    int.TryParse(substrings[3], out timeout);
+                    if (!int.TryParse(substrings[3], out timeout))
+                        timeout = 60000;
+                    else
+                        timeout *= 1000;
 
                     pollingTimer = new System.Threading.Timer(delegate(Object state)
                     {
@@ -459,7 +499,7 @@ namespace DSR_ConsoleWebService
                                     pollingTimer.Change(-1, Timeout.Infinite);
                                     pollingTimer.Dispose();
                                     pollingTimer = null;
-                                    onResponceForClient.Invoke(null, clientConnection);
+
                                 }
                             }
                             else
@@ -479,106 +519,31 @@ namespace DSR_ConsoleWebService
                     }
                 }
 
-                if (substrings[0] == "POST")
+                else if (substrings[0] == "POST")
                 {
-                    DSRCommand command = new DSRCommand();
-                    command.deviceId = "ErrorCommand";
-
                     String contentString = Encoding.UTF8.GetString(request.content);
-                    try
-                    {
-                        command = JsonConvert.DeserializeObject<DSRCommand>(contentString);
-                        Console.WriteLine("[+] Request Accepted. POST deviceId = {0}", command.deviceId);
-                        Console.WriteLine("          Command Details :");
-                        foreach (DSRCommand.Command details in command.command)
-                        {
-                            Console.WriteLine("                  name = {0} value = {1}", details.name, details.value);
-                        }
 
-                        
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine("[-] Can't deserialize json String. {0}", contentString);
-                    }
+                    JObject newCommand = JObject.Parse(contentString);
+                    newCommand.Add("creationTime", DateTime.Now);
+                    newCommand.Add("timeout", 60);
+                    newCommand.Add("expired", false);
+                    newCommand.Add("delivered", false);
 
 
+                    Console.WriteLine("[+] Request Accepted. POST deviceId = {0}", newCommand.GetValue("deviceId"));
+                    Console.WriteLine("     Command Details :");
+                    Console.WriteLine("         deviceID : {0}", newCommand.GetValue("command"));
+                    //Console.WriteLine("                  name = {0} value = {1}", details.name, details.value);
 
 
-                    if (command.deviceId != "ErrorCommand")
-                    {
+                    BsonDocument doc = BsonDocument.Parse(newCommand.ToString());
 
-                        BsonDocument newCommand = new BsonDocument();
-                        newCommand.Add("deviceId", command.deviceId);
-                        newCommand.Add("creationTime", DateTime.Now);
-                        newCommand.Add("timeout", 60);
-                        newCommand.Add("expired", false);
-                        newCommand.Add("delivered", false);
-                        /*
-                        BsonDocument details = new BsonDocument();
-                        for (int i = 0; i < command.command.Length; i++)
-                        {
-                            BsonDocument detail = new BsonDocument();
-                            detail.Add("name",command.command[i].name);
-                            detail.Add("value",command.command[i].value);
-                            details.Add(String.Format("commandDetail_{0}",i),detail);
-                        }
-                        newCommand.Add("command", details);
-                        */
+                    await collection.InsertOneAsync(doc);
 
-                        JObject newObject = new JObject();
-
-                        newObject.Add("deviceId", command.deviceId);
-                        newObject.Add("creationTime", DateTime.Now);
-                        newObject.Add("timeout", 60);
-                        newObject.Add("expired", false);
-                        newObject.Add("delivered", false);
-
-                        JArray detailsArray = new JArray();
-                        for (int i = 0; i < command.command.Length; i++)
-                        {
-                            JObject detailfield = new JObject();
-                            detailfield.Add(new JProperty("name",command.command[i].name));
-                            detailfield.Add(new JProperty("value",command.command[i].value));
-                            detailsArray.Add(detailfield);
-                        }
-                        
-                        newObject.Add("command", detailsArray);
-
-                        BsonDocument doc = BsonDocument.Parse(newObject.ToString());
-                        
-
-                        await collection.InsertOneAsync(doc);
-                        if (onNewCommand != null)
-                            onNewCommand.Invoke(command);
-
-
-                        /*
-                        using (var connection = factory.CreateConnection())
-                        {
-                            using (var channel = connection.CreateModel())
-                            {
-                                channel.QueueDeclare("hello", false, false, false, null);
-
-                                BinaryFormatter formatter = new BinaryFormatter();
-                                Stream stream = new MemoryStream();
-                                formatter.Serialize(stream, command);
-                                Byte[] body = new byte[stream.Length];
-                                stream.Position = 0;
-                                stream.Read(body, 0, (int)stream.Length);
-
-                                var properties = channel.CreateBasicProperties();
-                                properties.DeliveryMode = 2;
-                                channel.BasicPublish("", "hello", null, body);
-                            }
-                        }
-                        */
-                    }
+                    if (onNewCommand != null)
+                        onNewCommand.Invoke(new DSRCommand() { deviceId = newCommand.GetValue("deviceId").ToString() });
 
                 }
-
-
-
             };
 
             while (true)
