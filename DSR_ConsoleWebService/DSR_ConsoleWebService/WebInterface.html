@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <meta name="viewport"
@@ -47,8 +47,11 @@
                         </td>
                         <td style="width: 90%">
                             <select>
-                                <option disabled="true">Select Command</option>
+                                <option selected="selected" disabled="true">Select Command</option>
                                 <option value="delete">Delete</option>
+								<option value="getInfo">Get Info</option>
+								<option value="upgrade">Upgrade</option>
+								<option value="setOnOff">Set On/Off</option>
                             </select>
                         </td>
                     </tr>
@@ -123,128 +126,88 @@
 </body>
 
 <script type="text/javascript">
-
     $(document).ready(function () {
-
         $("#AddDetailClick").click(function () {
             AddDetailClick();
         });
-
-
         $("#newCommandForm").click(function () {
-
             NewCommandSubmit($("#newCommandForm input"));
         });
-
         $("#viewLogButton").click(function () {
-
             ViewLogSubmit(document.getElementById("viewLogDeviceId").value);
         });
-
-
         var point = 0;
         point = 3;
-
-
     });
-
-
     window.onload = function () {
         init();
     };
-
     function init() {
         var t = 0;
         t++;
     }
-
     var CommandDetailsCount = 0;
     var detailList = [];
-
+	
     function AddDetailClick() {
         if (newDetailName.value == "" || newDetailValue.value == "") return;
-
         CommandDetailsCount++;
-        detailList.push([newDetailName.value, newDetailValue.value]);
+		var test = {name:newDetailName.value,value:newDetailValue.value};
+        detailList.push( {name:newDetailName.value,value:newDetailValue.value});
         var table = $("#CommandDeatailsTable");
         $('#CommandDeatailsTable tr:last').after(
             "<tr><td>" + newDetailName.value + "</td><td>" + newDetailValue.value + "</td></tr>"
             );
-
-
         AddToLogTable("com!!", ["detail1 : value 1", "detail2 : value 2"], "timestamp", "unknown");
     }
-
     function NewCommandSubmit(inputs) {
-
         var devId = document.getElementById("newCommandDevId").value;
         var command = document.getElementById("newCommandCommand").value;
         var details = document.getElementById("newCommandDetails").value;
-
         if (devId == null)
             alert("Enter Device ID");
         if (command == null)
             alert("Choose command");
         if (devId == null || command == null)
             return;
-
-        $.post("newCommand", { newCommandDevId: devId, newCommandCommand: command, anewCommandDetails: details })
+			
+		var commandData = { newCommandDevId: devId, newCommandCommand: command, newCommandDetails: detailList };
+		var test = JSON.stringify(commandData);
+					
+        $.post("newCommand", commandData)
         .done(function () {
             alert("success");
         })
         .fail(function () {
             alert("error");
         });
-
         return false;
     }
-
-
     function ViewLogSubmit(inputs) {
-
-
         
-
         $.get("viewLog", { devId: inputs})
         .done(function (responce) {
             alert("responce!!");
-
             var str = JSON.stringify(responce, null, 2); // spacing level = 2     
             for (var i = 0; i < responce.log.length; i++)
                 AddToLogTable(responce.log[i].deviceId, str, "Sdsd", "status");
-            
-            
-            
-
-
-
         })
         .fail(function (responce) {
             alert("error");
-
         });
         return false;
     }
-
-
     function AddToLogTable(command, details, time, status) {
-
         var string = "<tr>" +
             "<td>" + command + "</td>";
-
         string += "<td>";
         string += details;
         string += "</td>";
-
         string += "<td>" + time + "</td>" +
             "<td>" + status + "</td>" +
             "</tr>";
-
-
         $('#LogTAble tr:last').after(string);
-
     }
-
     //---------------------------------
 </script>
 
