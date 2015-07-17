@@ -76,7 +76,7 @@ namespace DSR_ConsoleWebService
             public bool receivingContent;
         }
 
-
+        //вызов метода после полной обработки поступившего запроса. отправляет ответ и закрывает соединение
         public async void OnHttpResponce(HTTPRequest responce, ClientConnection client)
         {
             if (responce == null)
@@ -169,7 +169,7 @@ namespace DSR_ConsoleWebService
 
                             if(reqStr.StartsWith("GET ") || reqStr.StartsWith("POST "))
                             {
-                                
+                                //начало нового http запроса
                                 client.requestOnReceiving = new HTTPRequest();
                                 client.requestOnReceiving.headers = new List<string>();
                             }
@@ -289,6 +289,7 @@ namespace DSR_ConsoleWebService
 
                 String[] substrings = request.headers[0].Split(new String[] { "/", " " }, StringSplitOptions.RemoveEmptyEntries);
 
+                //запрос на получени веб-интерфеса, возврщаеи html файл
                 if (substrings[0] == "GET" && substrings[1] == "HTTP")
                 {
                     Console.WriteLine("[+] Request Accepted. GET WebPAge Interface ");
@@ -315,6 +316,7 @@ namespace DSR_ConsoleWebService
                         onResponceForClient.Invoke(responce, clientConnection);
                     }
                 }
+                //POST запрос из веб-интерфеса на создание новой команды
                 else if (substrings[0] == "POST" && substrings[1] == "newCommand")
                 {
                     String argumentString = Encoding.UTF8.GetString(request.content);
@@ -360,7 +362,7 @@ namespace DSR_ConsoleWebService
                     }
 
                 }
-
+                // запрос из веб-интерфеса лога команд для девайса 
                 else if (substrings[0] == "GET" && substrings[1].StartsWith("viewLog?devId="))
                 {
                     String argumentString;
@@ -420,7 +422,7 @@ namespace DSR_ConsoleWebService
 
                     }
                 }
-
+                // запрос от клиентского девайса команды
                 else if (substrings[0] == "GET" && substrings[1] == "command")
                 {
                     Console.WriteLine("[+] Request Accepted. GET deviceId = {0}  timeout = {1} ", substrings[2], substrings[3]);
@@ -504,7 +506,7 @@ namespace DSR_ConsoleWebService
                             }
                             else
                             {
-                                //long polling
+                                //начало long polling
                                 onNewCommand += delegate(DSRCommand command)
                                 {
                                     if (command.deviceId == substrings[2]) // Captain ? :)
@@ -518,7 +520,7 @@ namespace DSR_ConsoleWebService
                         checkCollection = false;
                     }
                 }
-
+                // POST запрос от клиента с новой командой
                 else if (substrings[0] == "POST")
                 {
                     String contentString = Encoding.UTF8.GetString(request.content);
