@@ -1,0 +1,12 @@
+﻿@model MvcApplication1.App_Data.ViewContext
+
+@{
+    ViewBag.Title = "LogView";
+}
+
+<h2>LogView</h2>
+<fieldset style="width:350px; padding-left:10px">
+    <legend>Log</legend>
+    <p>Enter DeviceId<br /> @Html.TextBoxFor(cont => cont.deviceIdForLogRequest) </p>
+    <p><input type="submit" value="Show Log" /></p>
+</fieldset>

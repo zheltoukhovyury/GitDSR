@@ -7,20 +7,32 @@ using System.Web.Mvc;
 using System.Text;
 using Newtonsoft.Json.Linq;
 using System.Threading;
-
+using MvcApplication1.App_Data;
+using System.Web.Routing;
+using System.Configuration;
  
 
 namespace MvcApplication1.Controllers
 {
+
+
     public class DSRWebServiceController : Controller
     {
-        App_Data.DataContextRealiztion context;
+        App_Data.IDataContextAbstract context;
         delegate void NewCommandSignal(String deviceId);
         static event NewCommandSignal onNewCommand;
 
+        public delegate void RequestProcessed(JObject command);
+        public event RequestProcessed onRequestProcessed;
+
         public DSRWebServiceController()
         {
-            context = App_Data.DataContextRealiztion.globalModelInstance;
+
+        }
+
+        public void SetDataContext(IDataContextAbstract context)
+        {
+            this.context = context;
         }
 
         [HttpGet]
@@ -39,6 +51,15 @@ namespace MvcApplication1.Controllers
         [HttpGet]
         public void Command(String deviceId, int timeout = 60)
         {
+            if (context == null)
+            {
+                context = new App_Data.DataContextRealiztion(
+                RabbitMQAddr: ConfigurationManager.AppSettings["RabbitMqHost"],
+                MongoDbConnectionString: ConfigurationManager.AppSettings["MongoDbConnectionString"],
+                MongoDbDataBaseName: ConfigurationManager.AppSettings["MongoDbDataBaseName"],
+                MongoDbCollectionName: ConfigurationManager.AppSettings["MongoDbCollectionName"]);
+            }
+
             JObject command = context.GetCommand(deviceId);
             if (command == null)
             {
@@ -64,8 +85,9 @@ namespace MvcApplication1.Controllers
                         pollingTimer.Change(-1, Timeout.Infinite);
                         pollingTimer.Dispose();
                         pollingTimer = null;
-                        polling = false;
+                        
                         command = context.GetCommand(deviceId);
+                        polling = false;
                     }
                 };
 
@@ -82,6 +104,8 @@ namespace MvcApplication1.Controllers
                     Response.BinaryWrite(Encoding.UTF8.GetBytes(command.ToString()));
                 }
                 Response.Flush();
+                if (onRequestProcessed != null)
+                    onRequestProcessed.Invoke(command);
             }
             else
             {
@@ -90,12 +114,24 @@ namespace MvcApplication1.Controllers
                 Response.Clear();
                 Response.BinaryWrite(Encoding.UTF8.GetBytes(command.ToString()));
                 Response.Flush();
+                if (onRequestProcessed!=null)
+                    onRequestProcessed.Invoke(command);
 
             }
         }
         [HttpPost]
-        public void NewCommand(String json)
+        public void NewCommand()
         {
+            if (context == null)
+            {
+                // TODO инициализация источника данных. сделать внерение зависимостей, например сделать конструктор с аргументо типа источника  
+                context = new App_Data.DataContextRealiztion(
+                RabbitMQAddr: ConfigurationManager.AppSettings["RabbitMqHost"],
+                MongoDbConnectionString: ConfigurationManager.AppSettings["MongoDbConnectionString"],
+                MongoDbDataBaseName: ConfigurationManager.AppSettings["MongoDbDataBaseName"],
+                MongoDbCollectionName: ConfigurationManager.AppSettings["MongoDbCollectionName"]);
+            }
+
             Byte[] body = new Byte[Request.InputStream.Length];
             Request.InputStream.Position = 0;
             Request.InputStream.Read(body,0,body.Length);

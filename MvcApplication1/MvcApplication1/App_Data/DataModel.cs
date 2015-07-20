@@ -27,18 +27,34 @@ namespace MvcApplication1.App_Data
         JObject GetCommand(String deviceId);
     }
 
+    public class FakeContext : IDataContextAbstract
+    {
+        JObject obj = null;
+
+        public void NewCommand(JObject command)
+        {
+            obj = command;
+        }
+
+        public JObject GetCommand(String deviceId)
+        {
+            JObject retObj = obj;
+            obj = null;
+            return retObj;
+        }
+    }
+
 
     public class DataContextRealiztion : IDataContextAbstract
     {
-        public static DataContextRealiztion globalModelInstance = new DataContextRealiztion();
         MongoClient client;
         IMongoDatabase dataBase;
-        String RabbitMQAddr = ConfigurationManager.AppSettings["RabbitMqHost"];
-        String MongoDbConnectionString = ConfigurationManager.AppSettings["MongoDbConnectionString"];
+        //String RabbitMQAddr = ConfigurationManager.AppSettings["RabbitMqHost"];
+        //String MongoDbConnectionString = ConfigurationManager.AppSettings["MongoDbConnectionString"];
         IMongoCollection<BsonDocument> collection;
         ConnectionFactory factory;
 
-        public DataContextRealiztion()
+        public DataContextRealiztion(String RabbitMQAddr, String MongoDbConnectionString, String MongoDbDataBaseName, String MongoDbCollectionName)
         {
             //RabbitMq Init
             factory = new ConnectionFactory() { HostName = RabbitMQAddr };
@@ -57,8 +73,8 @@ namespace MvcApplication1.App_Data
 
             //Mongo Init
             client = new MongoClient(MongoDbConnectionString);
-            dataBase = client.GetDatabase(ConfigurationManager.AppSettings["MongoDbDataBaseName"]);
-            collection = dataBase.GetCollection<BsonDocument>(ConfigurationManager.AppSettings["MongoDbCollectionName"]);
+            dataBase = client.GetDatabase(MongoDbDataBaseName);
+            collection = dataBase.GetCollection<BsonDocument>(MongoDbCollectionName);
             var testCollection = dataBase.GetCollection<BsonDocument>("DBConnectionTest");
             BsonDocument testCommand = new BsonDocument();
             testCommand.Add("test", "test");
@@ -76,7 +92,6 @@ namespace MvcApplication1.App_Data
             {
                 Console.WriteLine("[-] Connecting to MongoDB with ConnectionString {0} FAILED", MongoDbConnectionString);
             }
-            globalModelInstance = this;
         }
 
         public void NewCommand(JObject command)

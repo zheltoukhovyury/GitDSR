@@ -29,3 +29,5 @@ d:\Projects\MvcApplication1\MvcApplication1.Tests\bin\Debug\System.Web.WebPages.
 d:\Projects\MvcApplication1\MvcApplication1.Tests\obj\Debug\MvcApplication1.Tests.csprojResolveAssemblyReference.cache
 d:\Projects\MvcApplication1\MvcApplication1.Tests\obj\Debug\MvcApplication1.Tests.dll
 d:\Projects\MvcApplication1\MvcApplication1.Tests\obj\Debug\MvcApplication1.Tests.pdb
+d:\Projects\MvcApplication1\MvcApplication1.Tests\bin\Debug\Moq.dll
+d:\Projects\MvcApplication1\MvcApplication1.Tests\bin\Debug\Moq.xml
