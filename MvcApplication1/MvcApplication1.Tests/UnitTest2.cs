@@ -89,6 +89,7 @@ namespace MvcApplication1.Tests
             controller.onRequestProcessed += delegate(JObject newCommand)
             {
                 commandOnGet = newCommand;
+                polling = false;
             };
 
 
@@ -102,7 +103,7 @@ namespace MvcApplication1.Tests
             Task getTask = Task.Factory.StartNew(() =>
             {
                 controller.Command(deviceId, 10);
-                polling = false;
+
             });
 
 
@@ -128,7 +129,6 @@ namespace MvcApplication1.Tests
             getTask = Task.Factory.StartNew(() =>
             {
                 controller.Command(deviceId, 10);
-                polling = false;
             });
 
             while (polling)
