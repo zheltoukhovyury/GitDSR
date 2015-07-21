@@ -3,20 +3,28 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 using System.Web.Mvc;
-
 using System.Text;
 using Newtonsoft.Json.Linq;
 using System.Threading;
 using MvcApplication1.App_Data;
 using System.Web.Routing;
 using System.Configuration;
- 
+
 
 namespace MvcApplication1.Controllers
 {
 
+    public interface IDSRWebServiceController
+    {
+        [HttpGet]
+        void Command(String deviceId, int timeout);
+        [HttpPost]
+        void NewCommand();
+    }
 
-    public class DSRWebServiceController : Controller
+
+
+    public class DSRWebServiceController : Controller, IDSRWebServiceController
     {
         App_Data.IDataContextAbstract context;
         delegate void NewCommandSignal(String deviceId);
@@ -25,12 +33,7 @@ namespace MvcApplication1.Controllers
         public delegate void RequestProcessed(JObject command);
         public event RequestProcessed onRequestProcessed;
 
-        public DSRWebServiceController()
-        {
-
-        }
-
-        public void SetDataContext(IDataContextAbstract context)
+        public DSRWebServiceController(App_Data.IDataContextAbstract context)
         {
             this.context = context;
         }
@@ -51,15 +54,6 @@ namespace MvcApplication1.Controllers
         [HttpGet]
         public void Command(String deviceId, int timeout = 60)
         {
-            if (context == null)
-            {
-                context = new App_Data.DataContextRealiztion(
-                RabbitMQAddr: ConfigurationManager.AppSettings["RabbitMqHost"],
-                MongoDbConnectionString: ConfigurationManager.AppSettings["MongoDbConnectionString"],
-                MongoDbDataBaseName: ConfigurationManager.AppSettings["MongoDbDataBaseName"],
-                MongoDbCollectionName: ConfigurationManager.AppSettings["MongoDbCollectionName"]);
-            }
-
             JObject command = context.GetCommand(deviceId);
             if (command == null)
             {
@@ -122,16 +116,6 @@ namespace MvcApplication1.Controllers
         [HttpPost]
         public void NewCommand()
         {
-            if (context == null)
-            {
-                // TODO инициализация источника данных. сделать внерение зависимостей, например сделать конструктор с аргументо типа источника  
-                context = new App_Data.DataContextRealiztion(
-                RabbitMQAddr: ConfigurationManager.AppSettings["RabbitMqHost"],
-                MongoDbConnectionString: ConfigurationManager.AppSettings["MongoDbConnectionString"],
-                MongoDbDataBaseName: ConfigurationManager.AppSettings["MongoDbDataBaseName"],
-                MongoDbCollectionName: ConfigurationManager.AppSettings["MongoDbCollectionName"]);
-            }
-
             Byte[] body = new Byte[Request.InputStream.Length];
             Request.InputStream.Position = 0;
             Request.InputStream.Read(body,0,body.Length);

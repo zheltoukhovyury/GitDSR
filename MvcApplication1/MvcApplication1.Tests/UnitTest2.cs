@@ -19,6 +19,7 @@ using System.IO;
 using MvcApplication1.Controllers;
 using System.Threading;
 using System.Configuration;
+using Ninject;
 using Moq;
 using System.Web.Routing;
 
@@ -27,11 +28,11 @@ namespace MvcApplication1.Tests
     [TestClass]
     public class UnitTest2
     {
-
         [TestMethod]
         public void OnNewCommandTest()
         {
             //тест не будет иметь доступ к к конфигу, поэтому аогументы хардкодом
+            //на самом деле я б не стал делать такой тест. но больше и проверить-то нечего
 
             DataContextRealiztion context = new App_Data.DataContextRealiztion(
                 RabbitMQAddr: "localhost",
@@ -59,6 +60,10 @@ namespace MvcApplication1.Tests
         [TestMethod]
         public void RequestProcessingTest()
         {
+            IKernel kernel = new StandardKernel();
+            kernel.Bind<IDSRWebServiceController>().To<DSRWebServiceController>();
+            kernel.Bind<App_Data.IDataContextAbstract>().To<App_Data.FakeContext>();
+
             Stream requestStream = new MemoryStream();
             Stream reponseStream = new MemoryStream();
 
@@ -74,15 +79,14 @@ namespace MvcApplication1.Tests
             mContext.SetupGet((r) => r.Response).Returns(response.Object);
 
             IDataContextAbstract context = new FakeContext();
-            DSRWebServiceController controller = new DSRWebServiceController();
+            DSRWebServiceController controller = (DSRWebServiceController)kernel.Get<IDSRWebServiceController>();
 
             controller.ControllerContext = new ControllerContext(mContext.Object, new RouteData(), controller);
 
-
-
-            controller.SetDataContext(context);
             String deviceId = "devId";
-            controller.SetDataContext(context);
+            int seconds = 0;
+            bool polling = true;
+
 
 
             JObject commandOnGet = null;
@@ -92,10 +96,6 @@ namespace MvcApplication1.Tests
                 polling = false;
             };
 
-
-            int seconds = 0;
-            bool polling = true;
-
             JObject command = new JObject();
             command.Add("deviceId", deviceId);
             Byte[] commandBody = Encoding.UTF8.GetBytes(command.ToString());
@@ -103,7 +103,6 @@ namespace MvcApplication1.Tests
             Task getTask = Task.Factory.StartNew(() =>
             {
                 controller.Command(deviceId, 10);
-
             });
 
 
@@ -129,6 +128,7 @@ namespace MvcApplication1.Tests
             getTask = Task.Factory.StartNew(() =>
             {
                 controller.Command(deviceId, 10);
+                polling = false;
             });
 
             while (polling)

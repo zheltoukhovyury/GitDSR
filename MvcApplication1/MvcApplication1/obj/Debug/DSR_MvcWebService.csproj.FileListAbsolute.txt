@@ -28,3 +28,5 @@ d:\Projects\MvcApplication1\MvcApplication1\obj\Debug\MvcApplication1.pdb
 d:\Projects\MvcApplication1\MvcApplication1\obj\Debug\DSR_MvcWebService.csprojResolveAssemblyReference.cache
 d:\Projects\MvcApplication1\MvcApplication1\bin\Moq.dll
 d:\Projects\MvcApplication1\MvcApplication1\bin\Moq.xml
+d:\Projects\MvcApplication1\MvcApplication1\bin\Ninject.dll
+d:\Projects\MvcApplication1\MvcApplication1\bin\Ninject.xml
