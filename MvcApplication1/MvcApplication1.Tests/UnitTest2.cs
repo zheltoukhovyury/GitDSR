@@ -27,16 +27,7 @@ namespace MvcApplication1.Tests
     [TestClass]
     public class UnitTest2
     {
-        
-        
-        //     !!!!!        !!!!!     !!!!!     !!!!!
-        //вчера выкладывал и как-то получилось что файл с юнит-тестом для для get-запроса и polling окзался не выложенным
-        // выложу как только доберсь до дома
-        //     !!!!!     !!!!!     !!!!!     !!!!!
-        
-        
-        
-        
+
         [TestMethod]
         public void OnNewCommandTest()
         {
