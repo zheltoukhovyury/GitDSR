@@ -1,0 +1,27 @@
+﻿@model MvcApplication1.App_Data.DSRCommand
+@using MvcApplication1.App_Data;
+<div class="devItem">
+    @if (Model.deviceId != null)
+    {
+        <h4>Device ID: @Model.deviceId</h4>
+    }
+        
+    @if(Model.command.commandName != null)
+    { 
+        <h4>Command Name: @Model.command.commandName</h4>
+    }
+
+    
+    @if(Model.command.parameters!= null)
+    {
+        foreach ( DSRCommand.Command.Parameter parameter in Model.command.parameters)
+        {
+            <h5>Name: @parameter.name</h5>
+            <h5>Value: @parameter.name</h5>
+
+        }
+    }
+
+
+
+</div>

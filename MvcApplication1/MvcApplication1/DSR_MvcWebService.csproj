@@ -163,6 +163,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Properties\PublishProfiles\localhost.pubxml" />
+    <Content Include="Views\DSRWebService\logItem.cshtml" />
   </ItemGroup>
   <ItemGroup>
     <WCFMetadata Include="Service References\" />

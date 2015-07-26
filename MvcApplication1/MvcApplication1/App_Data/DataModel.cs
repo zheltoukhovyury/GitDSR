@@ -15,9 +15,26 @@ using System.Configuration;
 
 namespace MvcApplication1.App_Data
 {
+    public struct DSRCommand
+    {
+        public String deviceId { get; set; }
+        public struct Command
+        {
+            public String commandName { get; set; }
+            public struct Parameter
+            {
+                public String name { get; set; }
+                public string value { get; set; }
+            }
+            public Parameter[] parameters;
+        }
+        public Command command;
+    }
+
+
     public class ViewContext
     {
-        public List<JObject> history { get; set; }
+        public List<DSRCommand> history { get; set; }
         public String deviceIdForLogRequest { get; set; }
     }
 
@@ -25,6 +42,7 @@ namespace MvcApplication1.App_Data
     {
         void NewCommand(JObject command);
         JObject GetCommand(String deviceId);
+        List<JObject> GetHistory(String deviceId);
     }
 
     public class FakeContext : IDataContextAbstract
@@ -41,6 +59,10 @@ namespace MvcApplication1.App_Data
             JObject retObj = obj;
             obj = null;
             return retObj;
+        }
+        public List<JObject> GetHistory(String deviceId)
+        {
+            return null;
         }
     }
 
@@ -162,5 +184,32 @@ namespace MvcApplication1.App_Data
                 }
             }
         }
+
+        public List<JObject> GetHistory(String DevId)
+        {
+            List<JObject> history = new List<JObject>();
+            var builder = Builders<BsonDocument>.Filter;
+            var filter = builder.Eq("deviceId", DevId);
+            var operation = Task.Factory.StartNew(() => {
+
+                var cursor = collection.FindAsync(filter);
+                cursor.Result.MoveNextAsync();
+                Object batch = cursor.Result.Current;
+                var enumerator = (batch as IEnumerable<BsonDocument>).GetEnumerator();
+                enumerator.Reset();
+                while (enumerator.MoveNext())
+                {
+                    BsonDocument command = enumerator.Current;
+                    command.Remove("_id");
+                    command.Remove("expired");
+                    history.Add(JObject.Parse(command.ToJson().ToString()));
+                    
+
+                }
+            });
+            operation.Wait();
+            return history;
+        }
+
     }
 }

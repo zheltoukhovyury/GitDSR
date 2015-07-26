@@ -45,9 +45,23 @@ namespace MvcApplication1.Controllers
         }
 
         [HttpGet]
-        public ActionResult LogView()
+        public ViewResult LogView()
         {
-            return View("Home");
+            return View("LogView",new App_Data.ViewContext());
+        }
+
+        [HttpPost]
+        public ViewResult LogView(App_Data.ViewContext context)
+        {
+            List<JObject> history = this.context.GetHistory(context.deviceIdForLogRequest);
+            context.history = new List<DSRCommand>();
+
+            foreach (JObject historyItem in history)
+            {
+                DSRCommand historyCommand = (DSRCommand)historyItem.ToObject(typeof(DSRCommand));
+                context.history.Add(historyCommand);
+            }
+            return View("LogView", context);
         }
 
 

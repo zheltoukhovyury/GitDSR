@@ -15,6 +15,11 @@ namespace MvcApplication1
 
             routes.MapRoute(
                 name: null,
+                url: "Log",
+                defaults: new { controller = "DSRWebService", action = "LogView" });
+
+            routes.MapRoute(
+                name: null,
                 url: "command/{deviceId}/{timeout}",
                 defaults: new { controller = "DSRWebService", action = "Command", deviceId = UrlParameter.Optional, timeout = UrlParameter.Optional }
             );

@@ -1,12 +1,26 @@
 ﻿@model MvcApplication1.App_Data.ViewContext
+@using Newtonsoft.Json.Linq;
+@using MvcApplication1.App_Data;
 
 @{
     ViewBag.Title = "LogView";
 }
 
 <h2>LogView</h2>
+@using (Html.BeginForm()){
 <fieldset style="width:350px; padding-left:10px">
     <legend>Log</legend>
     <p>Enter DeviceId<br /> @Html.TextBoxFor(cont => cont.deviceIdForLogRequest) </p>
     <p><input type="submit" value="Show Log" /></p>
 </fieldset>
+<hr>
+}    
+@if (Model.history != null)
+{
+    foreach (DSRCommand item in Model.history)
+    {
+        Html.RenderPartial("LogItem", item);
+        <hr>
+    }
+}
+
