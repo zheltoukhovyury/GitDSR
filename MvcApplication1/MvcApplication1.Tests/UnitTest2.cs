@@ -13,7 +13,6 @@ using System.Web.Mvc;
 using Newtonsoft.Json.Linq;
 using System.Text;
 using RabbitMQ.Client.Events;
-using MvcApplication1.App_Data;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
 using MvcApplication1.Controllers;
@@ -22,6 +21,8 @@ using System.Configuration;
 using Ninject;
 using Moq;
 using System.Web.Routing;
+using MvcApplication1.Models;
+using MvcApplication1.Context;
 
 namespace MvcApplication1.Tests
 {
@@ -34,7 +35,7 @@ namespace MvcApplication1.Tests
             //тест не будет иметь доступ к к конфигу, поэтому аогументы хардкодом
             //на самом деле я б не стал делать такой тест. но больше и проверить-то нечего
 
-            DataContextRealiztion context = new App_Data.DataContextRealiztion(
+            DataContextRealiztion context = new Context.DataContextRealiztion(
                 RabbitMQAddr: "localhost",
                 MongoDbConnectionString: "mongodb://localhost:27017",
                 MongoDbDataBaseName: "DSR_Commands",
@@ -62,7 +63,7 @@ namespace MvcApplication1.Tests
         {
             IKernel kernel = new StandardKernel();
             kernel.Bind<IDSRWebServiceController>().To<DSRWebServiceController>();
-            kernel.Bind<App_Data.IDataContextAbstract>().To<App_Data.FakeContext>();
+            kernel.Bind<Models.IDataContextAbstract>().To<Context.FakeContext>();
 
             Stream requestStream = new MemoryStream();
             Stream reponseStream = new MemoryStream();
@@ -83,7 +84,7 @@ namespace MvcApplication1.Tests
 
             controller.ControllerContext = new ControllerContext(mContext.Object, new RouteData(), controller);
 
-            String deviceId = "devId";
+            String deviceId = "devIdtest";
             int seconds = 0;
             bool polling = true;
 
@@ -98,6 +99,13 @@ namespace MvcApplication1.Tests
 
             JObject command = new JObject();
             command.Add("deviceId", deviceId);
+
+            JObject commandPr = new JObject();
+            commandPr.Add("commandName", "testCommandName");
+            commandPr.Add("parameters",new JArray());
+            command.Add("command", commandPr);
+
+
             Byte[] commandBody = Encoding.UTF8.GetBytes(command.ToString());
 
             Task getTask = Task.Factory.StartNew(() =>

@@ -6,7 +6,6 @@ using System.Web.Mvc;
 using System.Text;
 using Newtonsoft.Json.Linq;
 using System.Threading;
-using MvcApplication1.App_Data;
 using System.Web.Routing;
 using System.Configuration;
 
@@ -26,14 +25,14 @@ namespace MvcApplication1.Controllers
 
     public class DSRWebServiceController : Controller, IDSRWebServiceController
     {
-        App_Data.IDataContextAbstract context;
+        Models.IDataContextAbstract context;
         delegate void NewCommandSignal(String deviceId);
         static event NewCommandSignal onNewCommand;
 
         public delegate void RequestProcessed(JObject command);
         public event RequestProcessed onRequestProcessed;
 
-        public DSRWebServiceController(App_Data.IDataContextAbstract context)
+        public DSRWebServiceController(Models.IDataContextAbstract context)
         {
             this.context = context;
         }
@@ -47,18 +46,18 @@ namespace MvcApplication1.Controllers
         [HttpGet]
         public ViewResult LogView()
         {
-            return View("LogView",new App_Data.ViewContext());
+            return View("LogView", new Models.ViewContext());
         }
 
         [HttpPost]
-        public ViewResult LogView(App_Data.ViewContext context)
+        public ViewResult LogView(Models.ViewContext context)
         {
             List<JObject> history = this.context.GetHistory(context.deviceIdForLogRequest);
-            context.history = new List<DSRCommand>();
+            context.history = new List<Models.DSRCommand>();
 
             foreach (JObject historyItem in history)
             {
-                DSRCommand historyCommand = (DSRCommand)historyItem.ToObject(typeof(DSRCommand));
+                Models.DSRCommand historyCommand = (Models.DSRCommand)historyItem.ToObject(typeof(Models.DSRCommand));
                 context.history.Add(historyCommand);
             }
             return View("LogView", context);
@@ -111,6 +110,8 @@ namespace MvcApplication1.Controllers
                     Response.ContentType = "application/json";
                     Response.BinaryWrite(Encoding.UTF8.GetBytes(command.ToString()));
                 }
+                else
+                    Response.StatusCode = 408;
                 Response.Flush();
                 if (onRequestProcessed != null)
                     onRequestProcessed.Invoke(command);
@@ -134,6 +135,15 @@ namespace MvcApplication1.Controllers
             Request.InputStream.Position = 0;
             Request.InputStream.Read(body,0,body.Length);
             JObject newCommand = JObject.Parse(Encoding.UTF8.GetString(body));
+
+            Models.DSRCommand newDsrCommand = (Models.DSRCommand)newCommand.ToObject(typeof(Models.DSRCommand));
+            if (newDsrCommand.deviceId == null || newDsrCommand.command.commandName == null || newDsrCommand.command.parameters == null)
+            {
+                Response.StatusCode = 406;
+                Response.Clear();
+                Response.Flush();
+                return;
+            }
 
             context.NewCommand(newCommand);
 

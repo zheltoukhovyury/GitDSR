@@ -22,11 +22,11 @@ namespace MvcApplication1
             public ControllerFactory()
             {
                 kernel = new StandardKernel();
-                kernel.Bind<App_Data.IDataContextAbstract>().To<App_Data.DataContextRealiztion>();
+                kernel.Bind<Models.IDataContextAbstract>().To<Context.DataContextRealiztion>();
 
                 // не осилил как нужно сделать привязку класса контроллера чтобы конструкотор контроллера вызывался с аргументом из привязки контекста
                 //так что контекст создается здесь
-                kernel.Bind<DSRWebServiceController>().ToSelf().WithConstructorArgument("context", new App_Data.DataContextRealiztion(
+                kernel.Bind<DSRWebServiceController>().ToSelf().WithConstructorArgument("context", new Context.DataContextRealiztion(
                     RabbitMQAddr: ConfigurationManager.AppSettings["RabbitMqHost"],
                     MongoDbConnectionString: ConfigurationManager.AppSettings["MongoDbConnectionString"],
                     MongoDbDataBaseName: ConfigurationManager.AppSettings["MongoDbDataBaseName"],
