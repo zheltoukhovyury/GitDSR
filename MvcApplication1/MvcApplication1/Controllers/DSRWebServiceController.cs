@@ -16,7 +16,7 @@ namespace MvcApplication1.Controllers
     public interface IDSRWebServiceController
     {
         [HttpGet]
-        void Command(String deviceId, int timeout);
+        ActionResult Command(String deviceId, int timeout);
         [HttpPost]
         void NewCommand();
     }
@@ -65,7 +65,7 @@ namespace MvcApplication1.Controllers
 
 
         [HttpGet]
-        public void Command(String deviceId, int timeout = 60)
+        public ActionResult Command(String deviceId, int timeout = 60)
         {
             JObject command = context.GetCommand(deviceId);
             if (command == null)
@@ -104,29 +104,29 @@ namespace MvcApplication1.Controllers
                     Thread.Sleep(10);
 
                 onNewCommand -= sign;
-                Response.Clear();
-                if (command != null)
-                {
-                    Response.ContentType = "application/json";
-                    Response.BinaryWrite(Encoding.UTF8.GetBytes(command.ToString()));
-                }
-                else
-                    Response.StatusCode = 408;
-                Response.Flush();
+
                 if (onRequestProcessed != null)
                     onRequestProcessed.Invoke(command);
+
+                if (command != null)
+                {
+                    return Json((Models.DSRCommand)command.ToObject(typeof(Models.DSRCommand)), JsonRequestBehavior.AllowGet);
+                }
+                else
+                {
+                    return Json(null, JsonRequestBehavior.AllowGet);
+                }
             }
             else
             {
                 String js = command.ToString();
-                Response.ContentType = "application/json";
-                Response.Clear();
-                Response.BinaryWrite(Encoding.UTF8.GetBytes(command.ToString()));
-                Response.Flush();
                 if (onRequestProcessed!=null)
                     onRequestProcessed.Invoke(command);
 
+                return Json((Models.DSRCommand)command.ToObject(typeof(Models.DSRCommand)), JsonRequestBehavior.AllowGet);
             }
+
+
         }
         [HttpPost]
         public void NewCommand()

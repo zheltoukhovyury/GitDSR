@@ -20,15 +20,21 @@ namespace MvcApplication1.Context
         //String MongoDbConnectionString = ConfigurationManager.AppSettings["MongoDbConnectionString"];
         IMongoCollection<BsonDocument> collection;
         ConnectionFactory factory;
+        List<IConnection> connection;
 
         public DataContextRealiztion(String RabbitMQAddr, String MongoDbConnectionString, String MongoDbDataBaseName, String MongoDbCollectionName)
         {
             //RabbitMq Init
             factory = new ConnectionFactory() { HostName = RabbitMQAddr };
+            connection = new List<IConnection>();
             try
             {
-                using (var connection = factory.CreateConnection())
-                using (var channel = connection.CreateModel())
+                for(int i=0;i<10;i++)
+                    connection.Add(factory.CreateConnection());
+
+                
+
+                using (IModel channel = connection.CreateModel())
                 {
                     Console.WriteLine("[+] Connecting to RabbitMQ service at {0} OK", RabbitMQAddr);
                 }
@@ -42,7 +48,7 @@ namespace MvcApplication1.Context
             client = new MongoClient(MongoDbConnectionString);
             dataBase = client.GetDatabase(MongoDbDataBaseName);
             collection = dataBase.GetCollection<BsonDocument>(MongoDbCollectionName);
-            var testCollection = dataBase.GetCollection<BsonDocument>("DBConnectionTest");
+            IMongoCollection<BsonDocument> testCollection = dataBase.GetCollection<BsonDocument>("DBConnectionTest");
             BsonDocument testCommand = new BsonDocument();
             testCommand.Add("test", "test");
             try
@@ -61,13 +67,10 @@ namespace MvcApplication1.Context
             }
         }
 
-        public void NewCommand(JObject command)
+        public void NewCommand(JObject newCommand)
         {
+            JObject command = (JObject)newCommand.DeepClone();
 
-            command.Add("creationTime", DateTime.Now);
-            command.Add("timeout", 60);
-            command.Add("expired", false);
-            command.Add("delivered", false);
             String json = command.ToString();
             String deviceId = command.GetValue("deviceId").ToString();
             BsonDocument doc = BsonDocument.Parse(json);
@@ -77,71 +80,66 @@ namespace MvcApplication1.Context
             });
             operation.RunSynchronously();
 
-            using (var connection = factory.CreateConnection())
+            if (!connection.IsOpen)
+                connection = factory.CreateConnection();
+
+            using (IModel channel = connection.CreateModel())
             {
-                using (var channel = connection.CreateModel())
-                {
-                    channel.ExchangeDeclare("ex" + deviceId, ExchangeType.Direct);
-                    channel.QueueDeclare(deviceId, false, false, false, null);
-                    channel.QueueBind(deviceId, "ex" + deviceId, "", null);
+                channel.ExchangeDeclare("ex" + deviceId, ExchangeType.Direct);
+                channel.QueueDeclare(deviceId, false, false, false, null);
+                channel.QueueBind(deviceId, "ex" + deviceId, "", null);
 
-                    IBasicProperties props = channel.CreateBasicProperties();
-                    props.DeliveryMode = 2;
+                IBasicProperties props = channel.CreateBasicProperties();
+                props.DeliveryMode = 2;
 
-                    Byte[] body = Encoding.UTF8.GetBytes(json);
-                    channel.BasicPublish("ex" + deviceId, "", props, body);
-                }
+                Byte[] body = Encoding.UTF8.GetBytes(json);
+                channel.BasicPublish("ex" + deviceId, "", props, body);
             }
-
+            
             //объект в методе изменяется, и не является сериализуемым. копию сделать так просто не получится
-            command.Remove("creationTime");
-            command.Remove("timeout");
-            command.Remove("expired");
-            command.Remove("delivered");
-
         }
 
         public JObject GetCommand(String deviceId)
         {
-            using (var connection = factory.CreateConnection())
+            if (!connection.IsOpen)
+                connection = factory.CreateConnection();
+
+            using (IModel channel = connection.CreateModel())
             {
-                using (var channel = connection.CreateModel())
+
+                channel.ExchangeDeclare("ex" + deviceId, ExchangeType.Direct);
+                channel.QueueDeclare(deviceId, false, false, false, null);
+                channel.QueueBind(deviceId, "ex" + deviceId, "", null);
+
+                BasicGetResult res = channel.BasicGet(deviceId, false);
+                if (res != null)
                 {
-
-                    channel.ExchangeDeclare("ex" + deviceId, ExchangeType.Direct);
-                    channel.QueueDeclare(deviceId, false, false, false, null);
-                    channel.QueueBind(deviceId, "ex" + deviceId, "", null);
-
-                    BasicGetResult res = channel.BasicGet(deviceId, false);
-                    if (res != null)
-                    {
-                        channel.BasicAck(res.DeliveryTag, false);
-                        JObject command = JObject.Parse(Encoding.UTF8.GetString(res.Body));
-                        command.Remove("creationTime");
-                        command.Remove("timeout");
-                        command.Remove("expired");
-                        command.Remove("delivered");
-                        return command;
-                    }
-                    else
-                        return null;
-
+                    channel.BasicAck(res.DeliveryTag, false);
+                    JObject command = JObject.Parse(Encoding.UTF8.GetString(res.Body));
+                    command.Remove("creationTime");
+                    command.Remove("timeout");
+                    command.Remove("expired");
+                    command.Remove("delivered");
+                    return command;
                 }
+                else
+                    return null;
+
             }
         }
 
         public List<JObject> GetHistory(String DevId)
         {
             List<JObject> history = new List<JObject>();
-            var builder = Builders<BsonDocument>.Filter;
-            var filter = builder.Eq("deviceId", DevId);
-            var operation = Task.Factory.StartNew(() =>
+            FilterDefinitionBuilder<BsonDocument> builder = Builders<BsonDocument>.Filter;
+            FilterDefinition<BsonDocument> filter = builder.Eq("deviceId", DevId);
+            Task operation = Task.Factory.StartNew(() =>
             {
 
-                var cursor = collection.FindAsync(filter);
+                Task<IAsyncCursor<BsonDocument>> cursor = collection.FindAsync(filter);
                 cursor.Result.MoveNextAsync();
                 Object batch = cursor.Result.Current;
-                var enumerator = (batch as IEnumerable<BsonDocument>).GetEnumerator();
+                IEnumerator <BsonDocument> enumerator = (batch as IEnumerable<BsonDocument>).GetEnumerator();
                 enumerator.Reset();
                 while (enumerator.MoveNext())
                 {
