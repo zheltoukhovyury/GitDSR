@@ -25,16 +25,17 @@ namespace MvcApplication1.Controllers
 
     public class DSRWebServiceController : Controller, IDSRWebServiceController
     {
-        Models.IDataContextAbstract context;
+        Models.IDataContextAbstract rabbitContext;
+        Models.IDataContextAbstract mongoContext;
         delegate void NewCommandSignal(String deviceId);
         static event NewCommandSignal onNewCommand;
 
         public delegate void RequestProcessed(JObject command);
         public event RequestProcessed onRequestProcessed;
 
-        public DSRWebServiceController(Models.IDataContextAbstract context)
+        public DSRWebServiceController()
         {
-            this.context = context;
+            
         }
 
         [HttpGet]
@@ -52,7 +53,8 @@ namespace MvcApplication1.Controllers
         [HttpPost]
         public ViewResult LogView(Models.ViewContext context)
         {
-            List<JObject> history = this.context.GetHistory(context.deviceIdForLogRequest);
+            mongoContext = Context.MongoDBContext.MongoContextFactory.GetContext();
+            List<JObject> history = mongoContext.GetHistory(context.deviceIdForLogRequest);
             context.history = new List<Models.DSRCommand>();
 
             foreach (JObject historyItem in history)
@@ -67,7 +69,8 @@ namespace MvcApplication1.Controllers
         [HttpGet]
         public ActionResult Command(String deviceId, int timeout = 60)
         {
-            JObject command = context.GetCommand(deviceId);
+            rabbitContext = Context.RabbitMqContext.RabbitMqContextFactory.GetContext();
+            JObject command = rabbitContext.GetCommand(deviceId);
             if (command == null)
             {
                 bool polling = true;
@@ -84,7 +87,6 @@ namespace MvcApplication1.Controllers
                     }
                 }, null, (Int32)timeout * 1000, timeout * 1000);
 
-
                 NewCommandSignal sign = delegate(String devId)
                 {
                     if (deviceId == devId)
@@ -92,8 +94,8 @@ namespace MvcApplication1.Controllers
                         pollingTimer.Change(-1, Timeout.Infinite);
                         pollingTimer.Dispose();
                         pollingTimer = null;
-                        
-                        command = context.GetCommand(deviceId);
+
+                        command = rabbitContext.GetCommand(deviceId);
                         polling = false;
                     }
                 };
@@ -107,6 +109,8 @@ namespace MvcApplication1.Controllers
 
                 if (onRequestProcessed != null)
                     onRequestProcessed.Invoke(command);
+
+                Context.RabbitMqContext.RabbitMqContextFactory.CloseContext((Context.RabbitMqContext)rabbitContext);
 
                 if (command != null)
                 {
@@ -123,6 +127,7 @@ namespace MvcApplication1.Controllers
                 if (onRequestProcessed!=null)
                     onRequestProcessed.Invoke(command);
 
+                Context.RabbitMqContext.RabbitMqContextFactory.CloseContext((Context.RabbitMqContext)rabbitContext);
                 return Json((Models.DSRCommand)command.ToObject(typeof(Models.DSRCommand)), JsonRequestBehavior.AllowGet);
             }
 
@@ -131,13 +136,32 @@ namespace MvcApplication1.Controllers
         [HttpPost]
         public void NewCommand()
         {
+            rabbitContext = Context.RabbitMqContext.RabbitMqContextFactory.GetContext();
+
+            bool valid = true;
             Byte[] body = new Byte[Request.InputStream.Length];
             Request.InputStream.Position = 0;
             Request.InputStream.Read(body,0,body.Length);
             JObject newCommand = JObject.Parse(Encoding.UTF8.GetString(body));
 
             Models.DSRCommand newDsrCommand = (Models.DSRCommand)newCommand.ToObject(typeof(Models.DSRCommand));
-            if (newDsrCommand.deviceId == null || newDsrCommand.command.commandName == null || newDsrCommand.command.parameters == null)
+
+            if(newDsrCommand.command.parameters != null)
+            {
+                foreach(Models.DSRCommand.Command.Parameter paramter in newDsrCommand.command.parameters)
+                {
+                    if(paramter.name == null || paramter.value == null || paramter.name == "")
+                        valid = false;
+                }
+            }
+            else
+                valid = false;
+
+            if (
+                valid == false ||
+                newDsrCommand.deviceId == null || 
+                newDsrCommand.command.commandName == null || Enum.GetNames(typeof(Models.DSRCommand.CommandList)).Contains<String>(newDsrCommand.command.commandName) == false || 
+                newDsrCommand.command.parameters == null)
             {
                 Response.StatusCode = 406;
                 Response.Clear();
@@ -145,8 +169,9 @@ namespace MvcApplication1.Controllers
                 return;
             }
 
-            context.NewCommand(newCommand);
-
+            rabbitContext.NewCommand(newCommand);
+            mongoContext = Context.MongoDBContext.MongoContextFactory.GetContext();
+            mongoContext.NewCommand(newCommand);
 
             if (onNewCommand != null)
                 onNewCommand.Invoke(newCommand.GetValue("deviceId").ToString());

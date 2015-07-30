@@ -15,6 +15,7 @@ namespace MvcApplication1
     // visit http://go.microsoft.com/?LinkId=9394801
     public class MvcApplication : System.Web.HttpApplication
     {
+        /*
         class ControllerFactory : DefaultControllerFactory
         {
 
@@ -41,7 +42,7 @@ namespace MvcApplication1
             }
         
         }
-
+        */
 
         protected void Application_Start()
         {
@@ -49,7 +50,7 @@ namespace MvcApplication1
             WebApiConfig.Register(GlobalConfiguration.Configuration);
             FilterConfig.RegisterGlobalFilters(GlobalFilters.Filters);
             RouteConfig.RegisterRoutes(RouteTable.Routes);
-            ControllerBuilder.Current.SetControllerFactory(new ControllerFactory());
+            //ControllerBuilder.Current.SetControllerFactory(new ControllerFactory());
         }
     }
 }

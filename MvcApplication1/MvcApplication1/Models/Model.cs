@@ -8,6 +8,15 @@ namespace MvcApplication1.Models
 {
     public struct DSRCommand
     {
+        public enum CommandList
+        { 
+            delete,
+            getInfo,
+            upgrade,
+            setOnOff,
+        }
+        public CommandList commandType;
+
         public String deviceId { get; set; }
         public struct Command
         {

@@ -35,12 +35,7 @@ namespace MvcApplication1.Tests
             //тест не будет иметь доступ к к конфигу, поэтому аогументы хардкодом
             //на самом деле я б не стал делать такой тест. но больше и проверить-то нечего
 
-            DataContextRealiztion context = new Context.DataContextRealiztion(
-                RabbitMQAddr: "localhost",
-                MongoDbConnectionString: "mongodb://localhost:27017",
-                MongoDbDataBaseName: "DSR_Commands",
-                MongoDbCollectionName: "DSR_Commands");
-            
+            Context.RabbitMqContext context = Context.RabbitMqContext.RabbitMqContextFactory.GetContext();
 
             String devId = "deviceId";
             JObject command_1 = new JObject();
@@ -48,7 +43,7 @@ namespace MvcApplication1.Tests
             context.NewCommand(command_1);
             JObject command_2 = context.GetCommand(devId);
 
-            // для JObject не срабатывает Equals хотя срабатывает для Jtoken
+            // для JObject не срабатывает Equals
             BsonDocument doc1 = BsonDocument.Parse(command_1.ToString());
             BsonDocument doc2 = BsonDocument.Parse(command_2.ToString());
 
@@ -101,7 +96,7 @@ namespace MvcApplication1.Tests
             command.Add("deviceId", deviceId);
 
             JObject commandPr = new JObject();
-            commandPr.Add("commandName", "testCommandName");
+            commandPr.Add("commandName", "getInfo");
             commandPr.Add("parameters",new JArray());
             command.Add("command", commandPr);
 
