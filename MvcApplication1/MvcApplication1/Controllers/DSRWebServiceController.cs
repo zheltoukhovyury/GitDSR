@@ -102,6 +102,12 @@ namespace MvcApplication1.Controllers
 
                 onNewCommand += sign;
 
+
+                //на момент написания этого кода у меня похоже недостаточно опыта в WCF чтобы элегантно реализвать long polling
+                // в асинхронном виде. есть в документации аттрбут AsyncPattern для контракта. если удасться, к понедельнику переделаю
+                //c использованием WCF
+
+
                 while (polling)
                     Thread.Sleep(10);
 
