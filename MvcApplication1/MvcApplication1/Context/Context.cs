@@ -45,6 +45,12 @@ namespace MvcApplication1.Context
                 return newContext;
             }
 
+
+            //наверное в данном случае можно определить Finalize для типа RabbitMqContext и
+            //делегат в RabbitMqContextFactory, который будут активаировать экземпляры RabbitMqContext когда 
+            //до них доберется сборщик мусора, и в этом делегает будут освобождаться соединеия. ато CloseContext как-то совсем неудобно
+            
+            
             static public void CloseContext(RabbitMqContext context)
             {
                 connectionPool.Remove(connectionPool.Find(con => (con.connection == context.connection)));
