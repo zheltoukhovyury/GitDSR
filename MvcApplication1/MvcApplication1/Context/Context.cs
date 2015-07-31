@@ -49,6 +49,7 @@ namespace MvcApplication1.Context
             //наверное в данном случае можно определить Finalize для типа RabbitMqContext и
             //делегат в RabbitMqContextFactory, который будут активаировать экземпляры RabbitMqContext когда 
             //до них доберется сборщик мусора, и в этом делегает будут освобождаться соединеия. ато CloseContext как-то совсем неудобно
+            //еще можно поместить вызов в finally блоке 
             
             
             static public void CloseContext(RabbitMqContext context)
