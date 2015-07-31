@@ -53,7 +53,7 @@ namespace MvcApplication1.Context
             
             static public void CloseContext(RabbitMqContext context)
             {
-                connectionPool.Remove(connectionPool.Find(con => (con.connection == context.connection)));
+                connectionPool.Find(conn => conn.connection == context.connection).busy = false;
             }
 
 
