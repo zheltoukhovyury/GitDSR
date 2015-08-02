@@ -38,7 +38,7 @@ namespace MvcApplication1.Models
         public String deviceIdForLogRequest { get; set; }
     }
 
-    public interface IDataContextAbstract
+    public interface IDataContextAbstract: IDisposable
     {
         void NewCommand(JObject command);
         JObject GetCommand(String deviceId);
