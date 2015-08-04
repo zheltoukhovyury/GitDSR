@@ -79,6 +79,8 @@ namespace MvcApplication1.Controllers
                 JObject command = rabbitContext.GetCommand(deviceId);
                 if (command == null)
                 {
+                    
+                    //загрузка ЦП на самом деле не меняется абсолютно
                     waitHandle = new EventWaitHandle(false, EventResetMode.ManualReset);
 
                     NewCommandSignal sign = delegate(String devId)
