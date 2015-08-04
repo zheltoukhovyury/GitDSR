@@ -70,49 +70,34 @@ namespace MvcApplication1.Controllers
         [HttpGet]
         public ActionResult Command(String deviceId, int timeout = 60)
         {
+            EventWaitHandle waitHandle;
+
+
             using (mongoContext = Context.MongoDBContext.MongoContextFactory.GetContext())
             using (rabbitContext = Context.RabbitMqContext.RabbitMqContextFactory.GetContext())
             {
                 JObject command = rabbitContext.GetCommand(deviceId);
                 if (command == null)
                 {
-                    bool polling = true;
-                    Timer pollingTimer = null;
-
-                    pollingTimer = new System.Threading.Timer(delegate(Object state)
-                    {
-                        if (pollingTimer != null)
-                        {
-                            pollingTimer.Change(-1, Timeout.Infinite);
-                            pollingTimer.Dispose();
-                            pollingTimer = null;
-                            polling = false;
-                        }
-                    }, null, (Int32)timeout * 1000, timeout * 1000);
+                    waitHandle = new EventWaitHandle(false, EventResetMode.ManualReset);
 
                     NewCommandSignal sign = delegate(String devId)
                     {
                         if (deviceId == devId)
                         {
-                            pollingTimer.Change(-1, Timeout.Infinite);
-                            pollingTimer.Dispose();
-                            pollingTimer = null;
-
-
                             command = rabbitContext.GetCommand(deviceId);
-                            polling = false;
+                            waitHandle.Set();
                         }
                     };
 
 
                 //на момент написания этого кода у меня похоже недостаточно опыта в WCF чтобы элегантно реализвать long polling
                 // в асинхронном виде. да еще встроить в ASP.net контроллер. есть в документации аттрбут AsyncPattern для контракта. если удасться, к понедельнику переделаю
-                //c использованием WCF. хотя что-то мне подсказывает, что я должtн был сделать не на ASP.net при использовании WCF, а просто на WCF
+                //c использованием WCF. хотя что-то мне подсказывает, что я должен был сделать не на ASP.net при использовании WCF, а просто на WCF
                     
                     onNewCommand += sign;
 
-                    while (polling)
-                        Thread.Sleep(10);
+                    waitHandle.WaitOne((Int32)timeout * 1000);
 
                     onNewCommand -= sign;
 
